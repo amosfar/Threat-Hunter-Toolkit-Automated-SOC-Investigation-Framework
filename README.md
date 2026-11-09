@@ -1,46 +1,90 @@
-# Threat-Hunter-Toolkit-Automated-SOC-Investigation-Framework
+<div align="center">
 
-An automated Security Operations Centre (SOC) investigation framework built using **PowerShell** for the Advanced Scripting module (COMPH2705) at TU Dublin.
+# 🛡️ Threat Hunter Toolkit
 
-## Project Overview
-The Threat Hunter Toolkit is designed to assist security analysts by automatically parsing, analyzing, and correlating multiple log sources to uncover malicious activity. Triggered by a single execution script, the tool analyzes system logs against known Indicators of Compromise (IOCs) and outputs a comprehensive, structured investigation report.
+### Automated SOC Investigation Framework
 
----
+A modular PowerShell toolkit for analyzing security logs, correlating indicators of compromise, and generating an investigation report.
 
-## Log Sources Analyzed
-The tool processes four distinct dataset files:
-* **`access.log`** — Web server access logs capturing HTTP requests.
-* **`auth.log`** — Authentication logs recording successful and failed SSH login attempts.
-* **`powershell_log.txt`** — Host-level logs tracking PowerShell command executions.
-* **`ioc.txt`** — A curated list of known Indicators of Compromise (IP addresses, URLs, file paths).
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-5391FE?logo=powershell&logoColor=white)](https://learn.microsoft.com/powershell/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Focus](https://img.shields.io/badge/Focus-Defensive%20Security-2ea44f)](#-detections)
+
+</div>
 
 ---
 
-## Core Detection Capabilities
+## ✨ Overview
 
-1. Brute Force / Failed Authentication Detection
-   * Scans `auth.log` for rejected OpenSSH login attempts (`Failed password` or `Invalid user`).
-   * Flags source IPs exceeding a threshold of 5 failed attempts and assigns a severity rating (Low, Medium, High) based on frequency.
+Run one command to perform a focused investigation across authentication, web access, and PowerShell activity. The toolkit runs separate detection modules, summarizes findings in the console, and writes a report to `investigation_report.txt`.
 
-2. Suspicious PowerShell Execution
-   * Inspects `powershell_log.txt` line by line for high-risk execution patterns.
-   * Targets dangerous commands such as `-EncodedCommand`, `-ExecutionPolicy Bypass`, `Invoke-WebRequest`, and `Invoke-Expression`.
+> **Academic project:** Created for the Advanced Scripting module (COMPH2705) at TU Dublin. Detection results are heuristic indicators for analyst review—not proof of compromise.
 
-3. Indicator of Compromise (IOC) Matching
-   * Cross-references `access.log` entries against the ground-truth list in `ioc.txt`.
-   * Automatically flags any contact with a known malicious indicator as **HIGH** severity.
+## 🔎 Detections
 
-4. Data Exfiltration Detection
-   * Analyzes both `powershell_log.txt` and `access.log` for staging and transfer behaviors.
-   * Identifies archive creation commands (`Compress-Archive`, `.zip`, `.tar`) and suspicious outbound large POST requests or upload paths.
+| Detection | Data source | What it looks for |
+| --- | --- | --- |
+| Brute-force activity | `auth.log` | Repeated failed SSH authentication attempts, grouped by source IP |
+| Suspicious PowerShell | `powershell_log.txt` | Risky execution patterns such as encoded commands, execution-policy bypasses, and download/evaluation commands |
+| IOC matches | `access.log`, `ioc.txt` | Requests matching indicators in the supplied IOC list |
+| Possible data exfiltration | `powershell_log.txt`, `access.log` | Archive-staging behavior and suspicious large POST requests or upload paths |
 
----
+## 🚀 Quick start
 
-## Getting Started & Execution
+### Requirements
 
-The entire investigation workflow is modular, with each detection function stored in its own script and loaded dynamically via PowerShell dot-sourcing[cite: 1].
+- Windows PowerShell 5.1 or later, or PowerShell 7+
+- The supplied dataset files in `ProjectDataset/`
 
-1. Ensure all dataset files (`access.log`, `auth.log`, `powershell_log.txt`, `ioc.txt`) are in the project directory alongside the scripts.
-2. Open PowerShell and run the main entry point script:
-   ```powershell
-   .\run.ps1
+### Run an investigation
+
+From the repository root, run:
+
+```powershell
+.\run.ps1
+```
+
+The script validates the dataset, loads the modules from `scripts/`, runs each detector, prints a summary, and generates `investigation_report.txt` in the repository root. The brute-force threshold defaults to **5 failed attempts**; the large-POST threshold defaults to **500,000 bytes**.
+
+## 📁 Repository layout
+
+```text
+.
+├── ProjectDataset/
+│   ├── access.log
+│   ├── auth.log
+│   ├── ioc.txt
+│   └── powershell_log.txt
+├── scripts/
+│   ├── Detect-BruteForce.ps1
+│   ├── Detect-DataExfiltration.ps1
+│   ├── Detect-IOCMatches.ps1
+│   ├── Detect-SuspiciousPowerShell.ps1
+│   └── Generate-Report.ps1
+├── run.ps1
+├── investigation_report.txt
+├── LICENSE
+└── README.md
+```
+
+## ⚙️ Configuration
+
+Default paths are resolved relative to `run.ps1`, so you can launch it from the repository root without editing paths. Detection thresholds are configured near the top of `run.ps1`:
+
+```powershell
+$BruteForceThreshold     = 5
+$LargePostThresholdBytes = 500000
+```
+
+Adjust these values to suit your test data and investigation needs. Lower thresholds can increase false positives.
+
+## 🧭 Interpreting results
+
+- Review each finding in context and corroborate it with other sources before taking action.
+- Detection rules are simple pattern and threshold checks; benign activity may match, and novel behavior may not.
+- Treat IOC lists and log data as untrusted input. Use authorized datasets and follow your organization's data-handling requirements.
+- The supplied logs are project data and may not represent a production environment.
+
+## 📄 License
+
+This project is distributed under the [MIT License](LICENSE).
